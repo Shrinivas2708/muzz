@@ -33,25 +33,19 @@ module.exports = (io) => {
     // Helper function to broadcast room state
     const broadcastRoomState = async (roomId) => {
         try {
-            const participantCount = roomUsers.get(roomId)?.size || 0;
-            const onlineUsers = await getOnlineUsers(roomId);
-
-            // Broadcast to room members
-            io.to(roomId).emit('roomState', {
-                participantCount,
-                onlineUsers
-            });
-
-            // Broadcast participant count to all clients for homepage updates
-            io.emit('roomUpdate', {
-                roomId,
-                participantCount
-            });
+            const room = roomUsers.get(roomId);
+            const participantCount = room ? new Set(room.values()).size : 0; // Count unique users
 
             // Update room in database
             await Room.findByIdAndUpdate(roomId, {
                 participantCount,
                 lastActive: new Date()
+            });
+
+            // Broadcast to all clients for homepage updates
+            io.emit('roomUpdate', {
+                roomId,
+                participantCount
             });
         } catch (error) {
             console.error('Error broadcasting room state:', error);
@@ -64,59 +58,101 @@ module.exports = (io) => {
             const userInfo = userSocketMap.get(socketId);
             if (!userInfo) return;
 
-            const { roomId, userId } = userInfo;
+            const { roomId } = userInfo;
             const room = roomUsers.get(roomId);
             
             if (room) {
                 room.delete(socketId);
                 
-                if (room.size === 0) {
-                    roomUsers.delete(roomId);
-                    // Start cleanup timer
-                    const timer = setTimeout(() => cleanupRoom(roomId), 5 * 60 * 1000);
-                    roomCleanupTimers.set(roomId, timer);
+                // Check if user has other active sockets in the room
+                let userStillActive = false;
+                for (const [otherSocketId, otherUserId] of room.entries()) {
+                    if (otherSocketId !== socketId && otherUserId === userInfo.userId) {
+                        userStillActive = true;
+                        break;
+                    }
                 }
 
-                await broadcastRoomState(roomId);
+                // Only update participant count if user is completely gone
+                if (!userStillActive) {
+                    await broadcastRoomState(roomId);
+                }
+
+                // If room is empty, start cleanup timer
+                if (room.size === 0) {
+                    roomUsers.delete(roomId);
+                    await broadcastRoomState(roomId);
+                }
             }
 
             userSocketMap.delete(socketId);
-            socket.leave(roomId);
         } catch (error) {
-            console.error('Error handling user leave:', error);
+            console.error('Error handling user leave room:', error);
+        }
+    };
+
+    // Modify the isRoomCreator helper function
+    const isRoomCreator = async (roomId, userId) => {
+        try {
+            const room = await Room.findById(roomId);
+            if (!room) {
+                console.log('Room not found:', roomId);
+                return false;
+            }
+            // Add debug logging
+            console.log('Room creator check:', {
+                roomId,
+                userId,
+                creator: room.creator,
+                isMatch: room.creator.toString() === userId?.toString()
+            });
+            return room.creator.toString() === userId?.toString();
+        } catch (error) {
+            console.error('Error checking room creator:', error);
+            return false;
         }
     };
 
     io.on('connection', (socket) => {
         console.log('User connected:', socket.id);
 
-        socket.on('joinRoom', async ({ roomId }) => {
+        socket.on('joinRoom', async ({ roomId, userId }) => {
             try {
+                if (!roomId || !userId) return;
+
                 socket.join(roomId);
+                
+                // Add user to room tracking
+                if (!roomUsers.has(roomId)) {
+                    roomUsers.set(roomId, new Map());
+                }
+                roomUsers.get(roomId).set(socket.id, userId);
+                userSocketMap.set(socket.id, { roomId, userId });
+
+                // Update participant count
+                await broadcastRoomState(roomId);
+
+                // Get previous messages and queue
+                const messages = await redis.lrange(`chat:${roomId}`, 0, -1);
+                const parsedMessages = messages.map(JSON.parse);
                 
                 const queue = await Song.find({ roomId })
                     .sort({ votes: -1, createdAt: 1 })
                     .populate('addedBy', 'username')
                     .lean();
-                    
-                const playbackState = roomPlaybackStates.get(roomId) || {
-                    time: 0,
-                    isPlaying: false
-                };
 
-                // Send the current song and remaining queue separately
-                const currentSong = queue[0] || null;
-                const remainingQueue = queue.slice(1);
+                // Check if user is room creator
+                const isCreator = await isRoomCreator(roomId, userId);
                 
-                socket.emit('roomState', {
-                    currentSong: currentSong,
-                    queue: remainingQueue,
-                    playbackTime: playbackState.time,
-                    isPlaying: playbackState.isPlaying
+                // Send initial state to client
+                socket.emit('roomInitialState', {
+                    messages: parsedMessages,
+                    queue,
+                    isCreator
                 });
             } catch (error) {
-                console.error('Error sending room state:', error);
-                socket.emit('error', { message: 'Failed to get room state' });
+                console.error('Error joining room:', error);
+                socket.emit('error', { message: 'Failed to join room' });
             }
         });
 
@@ -161,6 +197,15 @@ module.exports = (io) => {
                     return socket.emit('error', { message: 'Missing required data' });
                 }
 
+                // Check if user is room creator
+                const isCreator = await isRoomCreator(roomId, userId);
+                console.log('Add song permission check:', { roomId, userId, isCreator });
+                
+                if (!isCreator) {
+                    console.log('Permission denied for user:', userId);
+                    return socket.emit('error', { message: 'Only room creator can add songs' });
+                }
+
                 const newSong = await Song.create({
                     title: song.title,
                     artist: song.artist,
@@ -203,6 +248,8 @@ module.exports = (io) => {
         socket.on('leaveRoom', async ({ roomId }) => {
             try {
                 await handleUserLeaveRoom(socket.id);
+                // Update participant count after user leaves
+                await broadcastRoomState(roomId);
             } catch (error) {
                 console.error('Error leaving room:', error);
             }
@@ -362,7 +409,16 @@ module.exports = (io) => {
         });
 
         socket.on('disconnect', async () => {
-            await handleUserLeaveRoom(socket.id);
+            try {
+                const userInfo = userSocketMap.get(socket.id);
+                if (userInfo) {
+                    await handleUserLeaveRoom(socket.id);
+                    // Update participant count after disconnect
+                    await broadcastRoomState(userInfo.roomId);
+                }
+            } catch (error) {
+                console.error('Error handling disconnect:', error);
+            }
         });
     });
 

@@ -38,27 +38,16 @@ interface SearchResult {
   };
 }
 
-const SongSearch = () => {
+interface SongSearchProps {
+  isRoomCreator: boolean;
+}
+
+const SongSearch = ({ isRoomCreator }: SongSearchProps) => {
   const { roomId } = useParams<{ roomId: string }>();
   const [searchTerm, setSearchTerm] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isRoomCreator, setIsRoomCreator] = useState(false);
   const user = useAuthStore((state) => state.user);
-
-  useEffect(() => {
-    const checkRoomCreator = async () => {
-      try {
-        if (!roomId || !user?._id) return;
-        const response = await api.get(`/rooms/${roomId}`);
-        setIsRoomCreator(response.data.creator === user._id);
-      } catch (error) {
-        console.error("Failed to check room creator status:", error);
-      }
-    };
-
-    checkRoomCreator();
-  }, [roomId, user?._id]);
 
   const searchSaavn = async () => {
     if (!searchTerm.trim()) {
@@ -94,23 +83,6 @@ const SongSearch = () => {
     }
   };
 
-  // const handleAddSong = (song: any) => {
-  //   if (!user?._id || !roomId) {
-  //     toast.error("You must be logged in to add songs");
-  //     return;
-  //   }
-
-  //   socket.emit("addSong", {
-  //     roomId,
-  //     song: {
-  //       title: song.title,
-  //       artist: song.artist,
-  //       // Add any other song metadata you need
-  //     },
-  //     userId: user._id,
-  //   });
-  // };
-
   const addToQueue = async (song: SearchResult) => {
     if (!roomId || !user?._id) {
       toast.error("Must be logged in to add songs");
@@ -133,6 +105,8 @@ const SongSearch = () => {
       if (!downloadUrl) {
         throw new Error("No download URL available");
       }
+
+      console.log('Attempting to add song as user:', user._id);
 
       const songData = {
         title: song.name,

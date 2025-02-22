@@ -42,6 +42,7 @@ const Room = () => {
   // const [error, setError] = useState<string | null>(null);
   // const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const [showJoinPrompt, setShowJoinPrompt] = useState(false);
+  const [isRoomCreator, setIsRoomCreator] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated || !roomId) {
@@ -52,24 +53,33 @@ const Room = () => {
 
     const checkRoomAndShowPrompt = async () => {
       try {
-        setIsLoading(true); // Set loading at the start
+        setIsLoading(true);
         const response = await api.get(`/rooms/${roomId}`);
+        
+        // Convert IDs to strings for comparison
+        const creatorId = response.data.creator._id || response.data.creator;
+        const userId = user?._id;
+        const isCreator = creatorId.toString() === userId?.toString();
+        
+        console.log('Room creator check:', { creatorId, userId, isCreator });
+        
+        setIsRoomCreator(isCreator);
 
-        // Make sure we're comparing strings
-        const isAdmin = response.data.creator._id === user?._id;
-        const isParticipant = response.data.participants.includes(user?._id);
+        const isParticipant = response.data.participants.some(
+            (p: any) => p.toString() === userId?.toString()
+        );
 
-        if (!isAdmin && !isParticipant) {
-          setShowJoinPrompt(true);
+        if (!isCreator && !isParticipant) {
+            setShowJoinPrompt(true);
         } else {
-          await initializeRoom();
+            await initializeRoom();
         }
       } catch (error) {
         console.error("Failed to check room:", error);
         toast.error("Failed to load room");
         navigate("/");
       } finally {
-        setIsLoading(false); // Set loading to false regardless of outcome
+        setIsLoading(false);
       }
     };
 
@@ -86,24 +96,15 @@ const Room = () => {
   const initializeRoom = async () => {
     try {
       setIsLoading(true);
-      // setError(null);
 
       // Join the room
-      console.log(roomId, user?._id);
       socket.emit("joinRoom", { roomId, userId: user?._id });
 
       // Set up socket listeners
-      // socket.on("roomState", ({ participantCount, onlineUsers = [] }) => {
-      //   // setParticipantCount(participantCount || 0);
-      //   // setOnlineUsers(onlineUsers);
-      // });
-
-      socket.on("previousMessages", (messages) => {
-        setMessages(messages || []);
-      });
-
-      socket.on("newMessage", (message) => {
-        addMessage(message);
+      socket.on("roomInitialState", ({ messages, queue, isCreator }) => {
+        useRoomStore.getState().setMessages(messages || []);
+        useRoomStore.getState().setQueue(queue || []);
+        setIsRoomCreator(isCreator);
       });
 
       socket.on("updateQueue", (updatedQueue) => {
@@ -182,7 +183,7 @@ const Room = () => {
               {/* Song Search Component */}
               <div className="bg-white rounded-lg shadow-md p-4">
                 <h2 className="text-xl font-semibold mb-4">Add Songs</h2>
-                <SongSearch />
+                <SongSearch isRoomCreator={isRoomCreator} />
               </div>
             </div>
 

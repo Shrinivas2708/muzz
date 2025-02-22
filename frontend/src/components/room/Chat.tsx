@@ -17,20 +17,22 @@ const Chat = () => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Listen for new messages
+    // Clean up existing listeners first
+    socket.off("newMessage");
+    socket.off("previousMessages");
+    socket.off("error");
+
+    // Then set up new listeners
     socket.on("newMessage", (message) => {
       addMessage(message);
     });
 
-    // Listen for previous messages when joining room
     socket.on("previousMessages", (messages) => {
       useRoomStore.getState().setMessages(messages);
     });
 
-    // Listen for errors
     socket.on("error", ({ message: errorMessage }) => {
       toast.error(errorMessage || "An error occurred");
-      console.error("Socket error:", errorMessage);
     });
 
     return () => {
@@ -38,7 +40,7 @@ const Chat = () => {
       socket.off("previousMessages");
       socket.off("error");
     };
-  }, [addMessage]);
+  }, []);
 
   useEffect(() => {
     if (chatContainerRef.current) {
