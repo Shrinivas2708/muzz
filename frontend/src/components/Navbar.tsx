@@ -42,10 +42,13 @@ const Navbar = () => {
         name: newRoomName,
       });
 
+      // Join the room immediately after creation
+      await api.post(`/rooms/join/${response.data.room._id}`);
+      
       toast.success("Room created successfully!");
       setIsCreateDialogOpen(false);
       setNewRoomName("");
-      navigate(`/room/${response.data._id}`);
+      navigate(`/room/${response.data.room._id}`);
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to create room");
     } finally {

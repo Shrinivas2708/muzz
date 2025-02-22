@@ -44,7 +44,7 @@ const Room = () => {
   const [showJoinPrompt, setShowJoinPrompt] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !roomId) {
       const currentPath = `/room/${roomId}`;
       navigate(`/login?from=${encodeURIComponent(currentPath)}`);
       return;
@@ -52,10 +52,14 @@ const Room = () => {
 
     const checkRoomAndShowPrompt = async () => {
       try {
+        setIsLoading(true); // Set loading at the start
         const response = await api.get(`/rooms/${roomId}`);
-        const isAdmin = response.data.creator === user?._id;
 
-        if (!isAdmin) {
+        // Make sure we're comparing strings
+        const isAdmin = response.data.creator._id === user?._id;
+        const isParticipant = response.data.participants.includes(user?._id);
+
+        if (!isAdmin && !isParticipant) {
           setShowJoinPrompt(true);
         } else {
           await initializeRoom();
@@ -64,12 +68,13 @@ const Room = () => {
         console.error("Failed to check room:", error);
         toast.error("Failed to load room");
         navigate("/");
+      } finally {
+        setIsLoading(false); // Set loading to false regardless of outcome
       }
     };
 
     checkRoomAndShowPrompt();
 
-    // Cleanup function
     return () => {
       socket.off("roomState");
       socket.off("previousMessages");
@@ -84,6 +89,7 @@ const Room = () => {
       // setError(null);
 
       // Join the room
+      console.log(roomId, user?._id);
       socket.emit("joinRoom", { roomId, userId: user?._id });
 
       // Set up socket listeners
@@ -115,8 +121,18 @@ const Room = () => {
   };
 
   const handleJoinRoom = async () => {
-    setShowJoinPrompt(false);
-    await initializeRoom();
+    try {
+      setIsLoading(true); // Set loading while joining
+      await api.post(`/rooms/join/${roomId}`);
+      setShowJoinPrompt(false);
+      await initializeRoom();
+    } catch (error) {
+      console.error("Failed to join room:", error);
+      toast.error("Failed to join room");
+      navigate("/");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (isLoading) {

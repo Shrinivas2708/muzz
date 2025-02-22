@@ -11,14 +11,17 @@ exports.createRoom = async (req, res) => {
       name,
       creator: userId,
       participants: [userId],
+      participantCount: 1,
     });
 
-    // Store room in Redis with expiration (300s = 5 minutes)
-    await redis.setex(`room:${room._id}`, 300, JSON.stringify(room));
+    // Store room in Redis with expiration
+    const roomData = room.toObject();
+    await redis.setex(`room:${room._id}`, 300, JSON.stringify(roomData));
 
-    res.status(201).json({ message: "Room created", room });
+    res.status(201).json({ message: "Room created", room: roomData });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error });
+    console.error("Create room error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -36,7 +39,6 @@ exports.joinRoom = async (req, res) => {
     const { roomId } = req.params;
     const userId = req.user.id;
 
-    // First check if room exists in MongoDB
     const room = await Room.findById(roomId);
     if (!room) {
       return res.status(404).json({ message: "Room not found" });
@@ -45,19 +47,20 @@ exports.joinRoom = async (req, res) => {
     // Add user to participants if not already there
     if (!room.participants.includes(userId)) {
       room.participants.push(userId);
+      room.participantCount = room.participants.length;
       await room.save();
+
+      // Update Redis cache with the new data
+      const updatedRoom = await Room.findById(roomId)
+        .populate('creator', 'username _id')
+        .lean();
+      await redis.setex(`room:${roomId}`, 300, JSON.stringify(updatedRoom));
     }
 
-    // Update Redis cache
-    const roomData = room.toObject();
-    await redis.setex(`room:${roomId}`, 300, JSON.stringify(roomData));
-
-    res.json({ message: "Joined room successfully", room: roomData });
+    res.json({ message: "Joined room successfully", room });
   } catch (error) {
     console.error("Join room error:", error);
-    res
-      .status(500)
-      .json({ message: "Failed to join room", error: error.message });
+    res.status(500).json({ message: "Failed to join room", error: error.message });
   }
 };
 
@@ -101,14 +104,11 @@ exports.getRoom = async (req, res) => {
   try {
     const { roomId } = req.params;
 
-    // First try Redis
-    let room = await redis.get(`room:${roomId}`);
-    if (room) {
-      return res.json(JSON.parse(room));
-    }
-
     // If not in Redis, get from MongoDB
-    room = await Room.findById(roomId).populate("creator", "username");
+    const room = await Room.findById(roomId)
+      .populate('creator', 'username _id') // Make sure to include _id
+      .lean(); // Convert to plain object
+
     if (!room) {
       return res.status(404).json({ message: "Room not found" });
     }
@@ -119,8 +119,6 @@ exports.getRoom = async (req, res) => {
     res.json(room);
   } catch (error) {
     console.error("Get room error:", error);
-    res
-      .status(500)
-      .json({ message: "Failed to get room", error: error.message });
+    res.status(500).json({ message: "Failed to get room", error: error.message });
   }
 };

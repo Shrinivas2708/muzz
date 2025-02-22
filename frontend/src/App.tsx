@@ -96,6 +96,7 @@ function App() {
         />
       </ErrorBoundary>
     </Router>
+    
   );
 }
 

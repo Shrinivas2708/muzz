@@ -10,12 +10,13 @@ const RoomLayout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    < >
+      
       <Navbar />
-      <main className="container mx-auto py-6 px-4">
+      <main className="container mx-auto py-6 px-4 mt-16">
         <Outlet />
       </main>
-    </div>
+    </>
   );
 };
 
