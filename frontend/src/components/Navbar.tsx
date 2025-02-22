@@ -69,6 +69,12 @@ const Navbar = () => {
               <h1 className="text-xl font-bold text-gray-900">Muzz</h1>
             </div>
 
+            <div className="absolute left-1/2 transform -translate-x-1/2">
+              <p className="text-red-500 font-medium animate-pulse">
+                Under Development • May Experience Bugs
+              </p>
+            </div>
+
             <div className="flex items-center gap-4">
               {!isInRoom && (
                 <Button
