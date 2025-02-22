@@ -63,7 +63,7 @@ const Navbar = () => {
               onClick={() => navigate("/")}
             >
               <Music2 className="h-6 w-6 text-blue-500" />
-              <h1 className="text-xl font-bold text-gray-900">Music Room</h1>
+              <h1 className="text-xl font-bold text-gray-900">Muzz</h1>
             </div>
 
             <div className="flex items-center gap-4">
