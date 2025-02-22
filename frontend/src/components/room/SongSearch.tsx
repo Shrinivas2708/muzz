@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,7 +6,7 @@ import { useParams } from "react-router-dom";
 import { socket } from "@/lib/socket";
 import toast from "react-hot-toast";
 import { useAuthStore } from "@/store/authStore";
-import api from "@/lib/axios";
+// import api from "@/lib/axios";
 
 interface SaavnImage {
   quality: string;

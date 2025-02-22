@@ -34,8 +34,8 @@ const Room = () => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const setMessages = useRoomStore((state) => state.setMessages);
-  const addMessage = useRoomStore((state) => state.addMessage);
+  // const setMessages = useRoomStore((state) => state.setMessages);
+  // const addMessage = useRoomStore((state) => state.addMessage);
   const setQueue = useRoomStore((state) => state.setQueue);
   // const [participantCount, setParticipantCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
