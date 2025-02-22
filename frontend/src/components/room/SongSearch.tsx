@@ -6,6 +6,7 @@ import { useParams } from "react-router-dom";
 import { socket } from "@/lib/socket";
 import toast from "react-hot-toast";
 import { useAuthStore } from "@/store/authStore";
+// import { console } from "inspector";
 // import api from "@/lib/axios";
 
 interface SaavnImage {
@@ -38,15 +39,16 @@ interface SearchResult {
   };
 }
 
-interface SongSearchProps {
+                                                                        interface SongSearchProps {
   isRoomCreator: boolean;
 }
 
-const SongSearch = ({ isRoomCreator }: SongSearchProps) => {
+const SongSearch = ({ }: SongSearchProps) => {
   const { roomId } = useParams<{ roomId: string }>();
   const [searchTerm, setSearchTerm] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  
   const user = useAuthStore((state) => state.user);
 
   const searchSaavn = async () => {
@@ -89,11 +91,6 @@ const SongSearch = ({ isRoomCreator }: SongSearchProps) => {
       return;
     }
 
-    if (!isRoomCreator) {
-      toast.error("Only room creator can add songs");
-      return;
-    }
-
     try {
       // Get the highest quality download URL
       const downloadUrl = song.downloadUrl.sort((a, b) => {
@@ -105,8 +102,6 @@ const SongSearch = ({ isRoomCreator }: SongSearchProps) => {
       if (!downloadUrl) {
         throw new Error("No download URL available");
       }
-
-      console.log('Attempting to add song as user:', user._id);
 
       const songData = {
         title: song.name,
@@ -135,14 +130,6 @@ const SongSearch = ({ isRoomCreator }: SongSearchProps) => {
       toast.error("Failed to add song to queue");
     }
   };
-
-  if (!isRoomCreator) {
-    return (
-      <div className="text-center p-4 text-gray-500">
-        Only room creator can add songs
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">

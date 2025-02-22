@@ -68,21 +68,21 @@ const Navbar = () => {
               <Music2 className="h-6 w-6 text-blue-500" />
               <h1 className="text-xl font-bold text-gray-900">Muzz</h1>
             </div>
+            <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2  bg-opacity-75  rounded-lg inline-block">
+  <p className="text-red-500 font-medium animate-pulse">
+    Under Development • May Experience Bugs
+  </p>
+</div>
 
-            <div className="absolute left-1/2 transform -translate-x-1/2">
-              <p className="text-red-500 font-medium animate-pulse">
-                Under Development • May Experience Bugs
-              </p>
-            </div>
 
             <div className="flex items-center gap-4">
               {!isInRoom && (
                 <Button
                   onClick={() => setIsCreateDialogOpen(true)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                  className="bg-blue-500 hover:bg-blue-600 text-white w-[2rem] md:w-[3 rem] flex md:w-[10rem]"
                 >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Room
+                  <Plus className="h-2 w-2 mr-0 md:h-4 md:w-4" />
+                  <span className="hidden  md:block ">Create Room</span>
                 </Button>
               )}
               <div className="flex items-center gap-2">

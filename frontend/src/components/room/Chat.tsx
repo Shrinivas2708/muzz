@@ -90,11 +90,11 @@ const Chat = () => {
       {/* Chat Messages */}
       <div
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0"
+        className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0 flex flex-col"
       >
         {messages.map((msg, index) => (
           <div
-            key={index}
+            key={msg.timestamp || index}
             className={`flex ${
               msg.sender === user?.username ? "justify-end" : "justify-start"
             }`}

@@ -10,6 +10,26 @@ import api from "@/lib/axios";
 import { toast } from "react-hot-toast";
 // import { debounce } from "lodash";
 
+// Add at the top of the file, after imports
+interface PlaybackState {
+  currentTime: number;
+  isPlaying: boolean;
+  currentSong: {
+    _id: string;
+    title: string;
+    artist: string;
+    url: string;
+    duration: number;
+    addedBy: string;
+    votes: number;
+    upvoters: string[];
+    downvoters: string[];
+    upvotes: number;
+    downvotes: number;
+    albumName?: string;
+  } | null;
+}
+
 const MusicPlayer = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -23,17 +43,22 @@ const MusicPlayer = () => {
   const currentSong = useRoomStore((state) => state.currentSong);
   const setCurrentSong = useRoomStore((state) => state.setCurrentSong);
   const user = useAuthStore((state) => state.user);
-  const lastPlaybackTime = useRef(0);
-  const lastKnownPosition = useRef(0);
-  // const errorToastShown = useRef(false);
+  // const syncTimeoutRef = useRef<NodeJS.Timeout>();
+  const lastSyncTime = useRef<number>(Date.now());
   const queue = useRoomStore((state) => state.queue);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+
+  // Add new ref for tracking user interaction
+  const hasUserInteracted = useRef(false);
+  const isInitialLoad = useRef(true);
 
   useEffect(() => {
     const checkRoomCreator = async () => {
       try {
         if (!roomId || !user?._id) return;
         const response = await api.get(`/rooms/${roomId}`);
-        setIsRoomCreator(response.data.creator === user._id);
+        const creatorId = response.data.creator._id || response.data.creator;
+        setIsRoomCreator(creatorId.toString() === user._id.toString());
       } catch (error) {
         console.error("Failed to check room creator status:", error);
       }
@@ -42,95 +67,191 @@ const MusicPlayer = () => {
     checkRoomCreator();
   }, [roomId, user?._id]);
 
+  // Add this useEffect to handle user interaction
+  useEffect(() => {
+    const handleUserInteraction = () => {
+      hasUserInteracted.current = true;
+      // Remove listeners once we have interaction
+      document.removeEventListener("click", handleUserInteraction);
+      document.removeEventListener("keydown", handleUserInteraction);
+    };
+
+    document.addEventListener("click", handleUserInteraction);
+    document.addEventListener("keydown", handleUserInteraction);
+
+    return () => {
+      document.removeEventListener("click", handleUserInteraction);
+      document.removeEventListener("keydown", handleUserInteraction);
+    };
+  }, []);
+
+  // Update the currentSong effect
   useEffect(() => {
     if (currentSong && audioRef.current) {
-      // Simple setup without complex error handling
       audioRef.current.src = currentSong.url;
       audioRef.current.load();
       audioRef.current.volume = volume;
 
-      const playAudio = async () => {
+      const setupAudio = async () => {
         try {
-          await audioRef.current?.play();
-          setIsPlaying(true);
+          if (isPlaying) {
+            if (hasUserInteracted.current || isRoomCreator) {
+              await audioRef.current?.play();
+            } else {
+              // Show toast only on initial load
+              if (isInitialLoad.current) {
+                toast.success("Click anywhere to enable audio playback", {
+                  duration: 5000,
+                });
+                isInitialLoad.current = false;
+              }
+            }
+          }
         } catch (error) {
-          console.error("Autoplay failed:", error);
+          console.error("Playback failed:", error);
           setIsPlaying(false);
+          if (isRoomCreator) {
+            socket.emit("updatePlaybackState", {
+              roomId,
+              currentTime: audioRef.current?.currentTime || 0,
+              isPlaying: false,
+              currentSong,
+            });
+          }
         }
       };
 
-      // Add basic event listeners
-      audioRef.current.addEventListener("canplay", playAudio);
-      audioRef.current.addEventListener("error", () => {
-        console.error("Audio error, trying next song");
-        if (queue.length > 1) {
-          setCurrentSong(queue[1]); // Skip to next song on error
-        }
-      });
+      audioRef.current.addEventListener("canplay", setupAudio);
 
       return () => {
         if (audioRef.current) {
-          audioRef.current.removeEventListener("canplay", playAudio);
+          audioRef.current.removeEventListener("canplay", setupAudio);
         }
       };
     }
-  }, [currentSong]);
+  }, [currentSong, isPlaying, volume, isRoomCreator, roomId]);
 
+  // Update the playback state effect
   useEffect(() => {
-    if (!audioRef.current) return;
+    if (roomId) {
+      socket.emit("requestPlaybackState", { roomId });
 
-    // Listen for playback sync updates
-    socket.on("playbackTimeUpdate", ({ time }) => {
-      if (
-        !isRoomCreator &&
-        Math.abs(audioRef.current!.currentTime - time) > 1
-      ) {
-        audioRef.current!.currentTime = time;
+      const handlePlaybackState = async ({
+        currentTime,
+        isPlaying: newIsPlaying,
+        currentSong: newCurrentSong,
+      }: PlaybackState) => {
+        if (audioRef.current) {
+          if (
+            newCurrentSong &&
+            (!currentSong || newCurrentSong._id !== currentSong._id)
+          ) {
+            setCurrentSong(newCurrentSong);
+            audioRef.current.src = newCurrentSong.url;
+            audioRef.current.load();
+            audioRef.current.currentTime = currentTime;
+            setProgress(currentTime);
+
+            if (newIsPlaying) {
+              try {
+                const playPromise = audioRef.current.play();
+                if (playPromise !== undefined) {
+                  playPromise.catch(() => {
+                    setAutoplayBlocked(true);
+                  });
+                }
+              } catch (error) {
+                console.error("Playback failed:", error);
+                setAutoplayBlocked(true);
+              }
+            }
+          } else {
+            audioRef.current.currentTime = currentTime;
+            setProgress(currentTime);
+
+            if (newIsPlaying !== isPlaying) {
+              if (newIsPlaying) {
+                try {
+                  const playPromise = audioRef.current.play();
+                  if (playPromise !== undefined) {
+                    playPromise.catch(() => {
+                      setAutoplayBlocked(true);
+                    });
+                  }
+                } catch (error) {
+                  console.error("Playback failed:", error);
+                  setAutoplayBlocked(true);
+                }
+              } else {
+                audioRef.current.pause();
+              }
+            }
+          }
+
+          setIsPlaying(newIsPlaying);
+        }
+      };
+
+      socket.on("playbackStateUpdate", handlePlaybackState);
+      socket.on("roomState", handlePlaybackState);
+      socket.on("songAdded", () => {
+        socket.emit("requestPlaybackState", { roomId });
+      });
+
+      return () => {
+        socket.off("playbackStateUpdate");
+        socket.off("roomState");
+        socket.off("songAdded");
+      };
+    }
+  }, [roomId, currentSong, isPlaying]);
+
+  // Update the user interaction handler
+  useEffect(() => {
+    const handleInteraction = () => {
+      hasUserInteracted.current = true;
+      if (autoplayBlocked && audioRef.current && isPlaying) {
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              setAutoplayBlocked(false);
+            })
+            .catch((error) => {
+              console.error("Failed to resume playback:", error);
+            });
+        }
       }
-    });
+    };
 
-    socket.on("seekUpdate", ({ time }) => {
-      if (!isRoomCreator) {
-        audioRef.current!.currentTime = time;
-      }
-    });
-
-    socket.on("songPaused", () => {
-      if (!isRoomCreator) {
-        audioRef.current!.pause();
-        setIsPlaying(false);
-      }
-    });
-
-    socket.on("songPlayed", () => {
-      if (!isRoomCreator) {
-        audioRef.current!.play();
-        setIsPlaying(true);
-      }
-    });
-
-    // Listen for next song events
-    socket.on("nextSong", ({ song }) => {
-      setCurrentSong(song);
-      if (song) {
-        setProgress(0);
-        setIsPlaying(true);
-        lastKnownPosition.current = 0;
-      }
-    });
-
-    // Add ended event listener
-    audioRef.current.addEventListener("ended", handleSongEnd);
+    window.addEventListener("click", handleInteraction, { once: true });
+    window.addEventListener("touchstart", handleInteraction, { once: true });
+    window.addEventListener("keydown", handleInteraction, { once: true });
 
     return () => {
-      socket.off("playbackTimeUpdate");
-      socket.off("seekUpdate");
-      socket.off("songPaused");
-      socket.off("songPlayed");
-      socket.off("nextSong");
-      audioRef.current?.removeEventListener("ended", handleSongEnd);
+      window.removeEventListener("click", handleInteraction);
+      window.removeEventListener("touchstart", handleInteraction);
+      window.removeEventListener("keydown", handleInteraction);
     };
-  }, [roomId, currentSong, setCurrentSong]);
+  }, [autoplayBlocked, isPlaying]);
+
+  // Add this effect to handle song changes
+  useEffect(() => {
+    if (currentSong && audioRef.current) {
+      audioRef.current.src = currentSong.url;
+      audioRef.current.load();
+      audioRef.current.volume = volume;
+
+      if (isPlaying) {
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {
+            setAutoplayBlocked(true);
+          });
+        }
+      }
+    }
+  }, [currentSong, volume]);
 
   useEffect(() => {
     if (!currentSong && queue.length > 0) {
@@ -149,14 +270,10 @@ const MusicPlayer = () => {
       const currentTime = audioRef.current.currentTime;
       setProgress(currentTime);
       setDuration(audioRef.current.duration);
-      lastKnownPosition.current = currentTime;
 
       // Emit time updates more frequently for better sync
-      if (
-        isRoomCreator &&
-        Math.abs(currentTime - lastPlaybackTime.current) > 0.5
-      ) {
-        lastPlaybackTime.current = currentTime;
+      if (isRoomCreator && Math.abs(currentTime - lastSyncTime.current) > 0.5) {
+        lastSyncTime.current = currentTime;
         socket.emit("updatePlaybackTime", { roomId, time: currentTime });
       }
     }
@@ -164,7 +281,11 @@ const MusicPlayer = () => {
 
   const handleSongEnd = () => {
     if (currentSong) {
-      socket.emit("songEnded", { roomId, songId: currentSong._id });
+      socket.emit("songEnded", {
+        roomId,
+        songId: currentSong._id,
+        queue, // Send current queue state
+      });
     }
   };
 
@@ -174,35 +295,37 @@ const MusicPlayer = () => {
     socket.emit("seekTime", { roomId, time: value });
   };
 
-  const handlePlay = async () => {
-    if (!audioRef.current?.src || !isRoomCreator) return;
+  // Update the handlePlayPause function
+  const handlePlayPause = async () => {
+    if (!isRoomCreator) return;
 
     try {
-      await audioRef.current.play();
-      setIsPlaying(true);
+      if (audioRef.current) {
+        if (isPlaying) {
+          audioRef.current.pause();
+          setIsPlaying(false);
+        } else {
+          await audioRef.current.play();
+          setIsPlaying(true);
+        }
 
-      if (isRoomCreator) {
-        socket.emit("songPlayed", {
+        socket.emit("updatePlaybackState", {
           roomId,
           currentTime: audioRef.current.currentTime,
+          isPlaying: !isPlaying,
+          currentSong,
+          duration: audioRef.current.duration,
         });
       }
     } catch (error) {
-      console.error("Play failed:", error);
+      console.error("Error handling play/pause:", error);
+      toast.error("Failed to play audio. Please try again.");
     }
   };
 
-  const handlePause = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-      if (isRoomCreator) {
-        socket.emit("songPaused", {
-          roomId,
-          currentTime: audioRef.current.currentTime,
-        });
-      }
-    }
+  const handleSkip = () => {
+    if (!isRoomCreator) return;
+    socket.emit("skipSong", { roomId });
   };
 
   const handleVolumeChange = ([value]: number[]) => {
@@ -230,33 +353,29 @@ const MusicPlayer = () => {
     }
   };
 
-  // Add this effect to handle initial room state
+  // Add effect to handle next song events
   useEffect(() => {
-    if (roomId) {
-      // Request initial room state when joining
-      socket.emit("joinRoom", { roomId });
+    socket.on("nextSong", ({ song, isPlaying: newIsPlaying }) => {
+      if (song) {
+        setCurrentSong(song);
+        setIsPlaying(newIsPlaying);
+        setProgress(0);
 
-      // Handle initial room state
-      socket.on(
-        "roomState",
-        ({ currentSong,  playbackTime, isPlaying }) => {
-          setCurrentSong(currentSong);
-          if (audioRef.current && currentSong) {
-            audioRef.current.src = currentSong.url;
-            audioRef.current.currentTime = playbackTime;
-            if (isPlaying) {
-              audioRef.current.play().catch(console.error);
-              setIsPlaying(true);
-            }
+        if (audioRef.current) {
+          audioRef.current.currentTime = 0;
+          if (newIsPlaying && (hasUserInteracted.current || isRoomCreator)) {
+            audioRef.current.play().catch(() => {
+              setAutoplayBlocked(true);
+            });
           }
         }
-      );
+      }
+    });
 
-      return () => {
-        socket.off("roomState");
-      };
-    }
-  }, [roomId, setCurrentSong]);
+    return () => {
+      socket.off("nextSong");
+    };
+  }, [setCurrentSong, isRoomCreator]);
 
   return (
     <div className="w-full space-y-4">
@@ -283,18 +402,14 @@ const MusicPlayer = () => {
             <div className="flex items-center gap-2">
               {isRoomCreator && (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={isPlaying ? handlePause : handlePlay}
-                  >
+                  <Button variant="ghost" size="icon" onClick={handlePlayPause}>
                     {isPlaying ? (
                       <Pause className="h-6 w-6" />
                     ) : (
                       <Play className="h-6 w-6" />
                     )}
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={handleSongEnd}>
+                  <Button variant="ghost" size="icon" onClick={handleSkip}>
                     <SkipForward className="h-6 w-6" />
                   </Button>
                 </>

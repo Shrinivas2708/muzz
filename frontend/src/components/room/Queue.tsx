@@ -21,7 +21,8 @@ const Queue = () => {
       try {
         if (!roomId || !user?._id) return;
         const response = await api.get(`/rooms/${roomId}`);
-        setIsRoomCreator(response.data.creator === user._id);
+        const creatorId = response.data.creator._id || response.data.creator;
+        setIsRoomCreator(creatorId.toString() === user._id.toString());
       } catch (error) {
         console.error('Failed to check room creator status:', error);
       }
@@ -45,7 +46,7 @@ const Queue = () => {
     }
   };
 
-  const handleDelete = async (songId: string) => {
+  const handleDeleteSong = async (songId: string) => {
     try {
       if (!user?._id) {
         toast.error('Must be logged in to delete songs');
@@ -102,7 +103,7 @@ const Queue = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleDelete(song._id)}
+                  onClick={() => handleDeleteSong(song._id)}
                   className="text-red-500 hover:text-red-700"
                 >
                   <Trash2 className="h-4 w-4" />

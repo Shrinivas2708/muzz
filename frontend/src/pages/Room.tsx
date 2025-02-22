@@ -55,24 +55,24 @@ const Room = () => {
       try {
         setIsLoading(true);
         const response = await api.get(`/rooms/${roomId}`);
-        
+
         // Convert IDs to strings for comparison
         const creatorId = response.data.creator._id || response.data.creator;
         const userId = user?._id;
         const isCreator = creatorId.toString() === userId?.toString();
-        
-        console.log('Room creator check:', { creatorId, userId, isCreator });
-        
+
+        console.log("Room creator check:", { creatorId, userId, isCreator });
+
         setIsRoomCreator(isCreator);
 
         const isParticipant = response.data.participants.some(
-            (p: any) => p.toString() === userId?.toString()
+          (p: any) => p.toString() === userId?.toString()
         );
 
         if (!isCreator && !isParticipant) {
-            setShowJoinPrompt(true);
+          setShowJoinPrompt(true);
         } else {
-            await initializeRoom();
+          await initializeRoom();
         }
       } catch (error) {
         console.error("Failed to check room:", error);
