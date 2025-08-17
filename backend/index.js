@@ -13,7 +13,7 @@ const connectDB = require("./config/db");
 const app = express();
 app.use(express.json());
 app.use(cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin:  "https://muzz.shriii.xyz/",
     methods: ["GET", "POST"],
     credentials: true
 }));
@@ -26,7 +26,7 @@ connectDB();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: process.env.CLIENT_URL || "http://localhost:5173",
+        origin: "https://muzz.shriii.xyz/",
         methods: ["GET", "POST"],
         credentials: true,
         allowedHeaders: ["Content-Type", "Authorization"]
