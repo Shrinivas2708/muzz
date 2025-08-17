@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,6 @@ import api from "@/lib/axios";
 import toast from "react-hot-toast";
 
 const Login = () => {
-  const location = useLocation();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,11 +20,11 @@ const Login = () => {
   const setAuth = useAuthStore((state) => state.setAuth);
 
   // Get the redirect URL from state or search params
-  const from = location.state?.from || new URLSearchParams(location.search).get('from') || '/';
+  // const from = location.state?.from || new URLSearchParams(location.search).get('from') || '/';
 
   const handleLoginSuccess = () => {
-    // Redirect back to the original URL after successful login
-    navigate(from);
+    // Always redirect to /home after successful login
+    navigate('/home', { replace: true });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,17 +50,17 @@ const Login = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen w-full flex items-center justify-center relative">
+      {/* Radial Gradient Background */}
+      <div className="absolute inset-0 -z-10" style={{background: "radial-gradient(120% 120% at 50% 90%, #fff 40%, #a78bfa 100%)"}} />
+      <Card className="w-full max-w-md rounded-3xl bg-white/90 shadow-2xl p-6 md:p-10 border-0">
         <CardHeader>
-          <h2 className="text-2xl font-bold text-center">Login to Music Room</h2>
+          <h2 className="text-3xl font-extrabold text-purple-700 text-center mb-2 tracking-tight">Login to Muzz</h2>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email
-              </label>
+              <label htmlFor="email" className="text-sm font-semibold text-purple-700">Email</label>
               <Input
                 id="email"
                 type="email"
@@ -69,12 +68,11 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
                 required
+                className="rounded-xl border-purple-200 focus:ring-2 focus:ring-purple-400"
               />
             </div>
             <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password
-              </label>
+              <label htmlFor="password" className="text-sm font-semibold text-purple-700">Password</label>
               <Input
                 id="password"
                 type="password"
@@ -82,11 +80,12 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
                 required
+                className="rounded-xl border-purple-200 focus:ring-2 focus:ring-purple-400"
               />
             </div>
             <Button
               type="submit"
-              className="w-full"
+              className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl shadow-md transition"
               disabled={isLoading}
             >
               {isLoading ? "Logging in..." : "Login"}
@@ -96,9 +95,7 @@ const Login = () => {
         <CardFooter className="flex justify-center">
           <p className="text-sm text-gray-600">
             Don't have an account?{" "}
-            <Link to="/register" className="text-blue-600 hover:underline">
-              Register here
-            </Link>
+            <a href="/register" className="text-purple-600 hover:underline font-semibold">Register here</a>
           </p>
         </CardFooter>
       </Card>

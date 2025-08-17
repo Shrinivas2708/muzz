@@ -3,7 +3,6 @@ import {
   Routes,
   Route,
   Navigate,
-  useLocation,
 } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "@/store/authStore";
@@ -11,27 +10,31 @@ import { useAuthStore } from "@/store/authStore";
 import { Suspense, lazy } from "react";
 import Loading from "@/components/ui/loading";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import { ReactNode } from "react";
 import RoomLayout from "@/layouts/RoomLayout";
+import PrivateRoute from "./components/PrivateRoute";
 
 // Lazy load pages for better performance
 const Login = lazy(() => import("@/pages/Login"));
 const Register = lazy(() => import("@/pages/Register"));
 const Room = lazy(() => import("@/pages/Room"));
 const Home = lazy(() => import("@/pages/Home"));
+const Landing = lazy(() => import("@/pages/Landing"));
 
-// Protected Route wrapper component
-const PrivateRoute = ({ children }: { children: ReactNode }) => {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const location = useLocation();
-
-  if (!isAuthenticated) {
-    // Save the attempted URL
-    return <Navigate to={`/login?from=${location.pathname}`} replace />;
+function AuthRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuthStore();
+  if (isAuthenticated) {
+    return <Navigate to="/home" replace />;
   }
+  return <>{children}</>;
+}
 
-  return children;
-};
+function GuestRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuthStore();
+  if (!isAuthenticated) {
+    return <>{children}</>;
+  }
+  return <Navigate to="/home" replace />;
+}
 
 function App() {
   return (
@@ -39,28 +42,43 @@ function App() {
       <ErrorBoundary>
         <Suspense fallback={<Loading />}>
           <Routes>
-            {/* Public routes */}
+            {/* Landing page only for unauthenticated users */}
             <Route
-              path="/login"
+              path="/"
               element={
-                <ErrorBoundary>
-                  <Login />
-                </ErrorBoundary>
+                <GuestRoute>
+                  <ErrorBoundary>
+                    <Landing />
+                  </ErrorBoundary>
+                </GuestRoute>
               }
             />
+            {/* Login/Register only for unauthenticated users */}
             <Route
-              path="/register"
-              element={
-                <ErrorBoundary>
-                  <Register />
-                </ErrorBoundary>
-              }
-            />
+  path="/login"
+  element={
+    <GuestRoute>
+      <ErrorBoundary>
+        <Login />
+      </ErrorBoundary>
+    </GuestRoute>
+  }
+/>
+<Route
+  path="/register"
+  element={
+    <GuestRoute>
+      <ErrorBoundary>
+        <Register />
+      </ErrorBoundary>
+    </GuestRoute>
+  }
+/>
 
             {/* Protected routes with RoomLayout */}
             <Route element={<RoomLayout />}>
               <Route
-                path="/"
+                path="/home"
                 element={
                   <PrivateRoute>
                     <Home />
@@ -76,12 +94,10 @@ function App() {
                 }
               />
             </Route>
-
             {/* Catch all route */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
-
         {/* Toast notifications */}
         <Toaster
           position="top-right"
@@ -96,7 +112,6 @@ function App() {
         />
       </ErrorBoundary>
     </Router>
-    
   );
 }
 

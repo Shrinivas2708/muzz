@@ -159,41 +159,44 @@ const Room = () => {
 
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <div className="min-h-screen bg-gray-50 pt-16">
-        <div className="container mx-auto px-6">
-          {/* Simple Room Title */}
-          <div className="py-4">
-            <h1 className="text-2xl font-semibold text-gray-900">Music Room</h1>
+      <div className=" relative w-full">
+        {/* Radial Gradient Background */}
+        
+        <div className="  px-4 sm:px-6 lg:px-8 py-10">
+          {/* Room Title */}
+          <div className="py-4 text-center">
+            <h1 className="text-3xl md:text-4xl font-extrabold text-purple-700 mb-2 tracking-tight drop-shadow-lg">
+              Music Room
+            </h1>
           </div>
-
-          <div className="grid grid-cols-12 gap-6">
-            {/* Left Side - Music Player, Queue, and Song Search */}
-            <div className="col-span-12 lg:col-span-8 space-y-6">
-              {/* Music Player Section */}
-              <div className="bg-white rounded-lg shadow-md p-4">
+  
+          <div className="grid grid-cols-12 gap-8">
+            {/* Left Side */}
+            <div className="col-span-12 lg:col-span-8 space-y-8">
+              <div className="bg-white/90 rounded-2xl shadow-xl p-6">
                 <MusicPlayer />
               </div>
-
-              {/* Queue Section */}
-              <div className="bg-white rounded-lg shadow-md p-4">
-                <h2 className="text-xl font-semibold mb-4">Queue</h2>
+  
+              <div className="bg-white/90 rounded-2xl shadow-xl p-6">
+                <h2 className="text-xl font-bold text-purple-700 mb-4">Queue</h2>
                 <Queue />
               </div>
-
-              {/* Song Search Component */}
-              <div className="bg-white rounded-lg shadow-md p-4">
-                <h2 className="text-xl font-semibold mb-4">Add Songs</h2>
+  
+              <div className="bg-white/90 rounded-2xl shadow-xl p-6">
+                <h2 className="text-xl font-bold text-purple-700 mb-4">Add Songs</h2>
                 <SongSearch isRoomCreator={isRoomCreator} />
               </div>
             </div>
-
-            {/* Right Side - Chat */}
+  
+            {/* Right Side */}
             <div className="col-span-12 lg:col-span-4">
-              <div className="bg-white rounded-lg shadow-md">
-                <div className="p-4 border-b">
-                  <h2 className="text-xl font-semibold">Chat</h2>
+              <div className="bg-white/90 rounded-2xl shadow-xl h-full flex flex-col">
+                <div className="p-6 border-b border-purple-100">
+                  <h2 className="text-xl font-bold text-purple-700">Chat</h2>
                 </div>
-                <Chat />
+                <div className="flex-1 overflow-y-auto">
+                  <Chat />
+                </div>
               </div>
             </div>
           </div>
@@ -201,6 +204,7 @@ const Room = () => {
       </div>
     </ErrorBoundary>
   );
+  
 };
 
 export default Room;

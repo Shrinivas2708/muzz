@@ -135,7 +135,6 @@ const Chat = () => {
           <Button
             onClick={sendMessage}
             disabled={!isAuthenticated}
-            className="bg-blue-500 hover:bg-blue-600 text-white"
           >
             Send
           </Button>

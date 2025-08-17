@@ -3,11 +3,12 @@ const express = require("express");
 const { Server } = require("socket.io");
 const cors = require("cors");
 const dotenv = require("dotenv");
+dotenv.config();
+
 // const rateLimiter = require("./middlewares/rateLimiter");
 const { cleanupInactiveRooms } = require("./controllers/roomController");
 const redis = require("./config/redis"); 
 const connectDB = require("./config/db"); 
-dotenv.config();
 
 const app = express();
 app.use(express.json());

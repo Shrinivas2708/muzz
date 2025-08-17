@@ -58,43 +58,36 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className="bg-white border-b border-gray-200 fixed w-full top-0 z-50">
+      <nav className="bg-white/90 border-b border-purple-200 fixed w-full top-0 z-50 rounded-b-2xl shadow-lg backdrop-blur-md">
         <div className="container mx-auto px-4">
           <div className="h-16 flex items-center justify-between">
             <div
               className="flex items-center space-x-2 cursor-pointer"
               onClick={() => navigate("/")}
             >
-              <Music2 className="h-6 w-6 text-blue-500" />
-              <h1 className="text-xl font-bold text-gray-900">Muzz</h1>
+              <Music2 className="h-7 w-7 text-purple-600" />
+              <h1 className="text-2xl font-extrabold text-purple-700 tracking-tight">Muzz</h1>
             </div>
-            <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2  bg-opacity-75  rounded-lg inline-block">
-  <p className="text-red-500 font-medium animate-pulse">
-    Under Development • May Experience Bugs
-  </p>
-</div>
-
-
             <div className="flex items-center gap-4">
               {!isInRoom && (
                 <Button
                   onClick={() => setIsCreateDialogOpen(true)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white w-[2rem] md:w-[3 rem] flex md:w-[10rem]"
+                  className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2 rounded-xl shadow-md transition"
                 >
-                  <Plus className="h-2 w-2 mr-0 md:h-4 md:w-4" />
-                  <span className="hidden  md:block ">Create Room</span>
+                  <Plus className="h-4 w-4 mr-2" />
+                  <span className="hidden md:block">Create Room</span>
                 </Button>
               )}
               <div className="flex items-center gap-2">
                 <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-gray-700 font-semibold">
                   Welcome, {user?.username}
                 </span>
               </div>
               <Button
                 variant="outline"
                 onClick={handleLogout}
-                className="hover:bg-red-50 hover:text-red-600 hover:border-red-300"
+                className="hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300 font-semibold rounded-xl"
               >
                 Logout
               </Button>
@@ -124,10 +117,11 @@ const Navbar = () => {
             <Button
               variant="outline"
               onClick={() => setIsCreateDialogOpen(false)}
+              className="rounded-xl"
             >
               Cancel
             </Button>
-            <Button onClick={handleCreateRoom} disabled={isCreating}>
+            <Button onClick={handleCreateRoom} disabled={isCreating} className="bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl">
               {isCreating ? "Creating..." : "Create"}
             </Button>
           </DialogFooter>
