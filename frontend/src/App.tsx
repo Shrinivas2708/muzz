@@ -20,13 +20,7 @@ const Room = lazy(() => import("@/pages/Room"));
 const Home = lazy(() => import("@/pages/Home"));
 const Landing = lazy(() => import("@/pages/Landing"));
 
-function AuthRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore();
-  if (isAuthenticated) {
-    return <Navigate to="/home" replace />;
-  }
-  return <>{children}</>;
-}
+
 
 function GuestRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
