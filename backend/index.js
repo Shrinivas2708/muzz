@@ -13,9 +13,10 @@ const connectDB = require("./config/db");
 const app = express();
 app.use(express.json());
 app.use(cors({
-    origin:  "https://muzz.shriii.xyz/",
-    methods: ["GET", "POST"],
-    credentials: true
+    origin:"*"
+    // origin:  "https://muzz.shriii.xyz/",
+    // methods: ["GET", "POST"],
+    // credentials: true
 }));
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/rooms", require("./routes/roomRoutes"));
@@ -26,10 +27,11 @@ connectDB();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: "https://muzz.shriii.xyz/",
-        methods: ["GET", "POST"],
-        credentials: true,
-        allowedHeaders: ["Content-Type", "Authorization"]
+        origin:"*"
+        // origin: "https://muzz.shriii.xyz/",
+        // methods: ["GET", "POST"],
+        // credentials: true,
+        // allowedHeaders: ["Content-Type", "Authorization"]
     },
     transports: ['websocket', 'polling']
 });
