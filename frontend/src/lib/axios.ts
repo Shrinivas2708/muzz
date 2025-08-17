@@ -4,8 +4,7 @@ const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'https://muzz-8wzg.onrender.com/api',
     headers: {
         'Content-Type': 'application/json',
-    },
-    withCredentials: true
+    }
 });
 
 // Add request interceptor to add auth token

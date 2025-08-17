@@ -6,7 +6,6 @@ export const socket = io(import.meta.env.VITE_WS_URL || 'https://muzz-8wzg.onren
   reconnection: true,
   reconnectionAttempts: 5,
   reconnectionDelay: 1000,
-  withCredentials: true,
   transports: ['websocket', 'polling'],
   timeout: 10000
 });
